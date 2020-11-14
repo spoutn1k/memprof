@@ -10,14 +10,14 @@ fn handle_sigchild() {
     unsafe { EXITED = true };
 }
 
-fn child_method(path: &String, args: &[String]) {
+fn child_method(args: &[String]) {
     fn convert(data: &String) -> CString {
         CString::new(data.as_bytes()).expect("Failed converting String to C-like string")
     }
 
     let c_args: Vec<CString> = args.iter().map(|x| convert(x)).collect();
 
-    execvp(&convert(path), &c_args).expect("Error launching {}");
+    execvp(&convert(&args[0]), &c_args).expect("Error launching {}");
 }
 
 fn extract_number(line: &String, prefix: &str) -> Option<u64> {
@@ -46,21 +46,23 @@ fn main() {
         process::exit(1);
     }
 
-    unsafe { register(SIGCHLD, handle_sigchild).expect("Error registering signal") };
+    unsafe {
+        register(SIGCHLD, handle_sigchild).expect("Error registering signal");
 
-    match unsafe { fork() } {
-        Ok(ForkResult::Parent { child, .. }) => {
-            child_pid = child;
-        }
+        match fork() {
+            Ok(ForkResult::Parent { child, .. }) => {
+                child_pid = child;
+            }
 
-        Ok(ForkResult::Child) => {
-            child_pid = Pid::from_raw(0);
-            child_method(&args[1], &args[1..]);
-        }
+            Ok(ForkResult::Child) => {
+                child_pid = Pid::from_raw(0);
+                child_method(&args[1..]);
+            }
 
-        Err(_) => {
-            println!("Fork failed");
-            process::exit(1);
+            Err(_) => {
+                println!("Fork failed");
+                process::exit(1);
+            }
         }
     }
 
