@@ -1,8 +1,10 @@
 use nix::unistd::{execvp, fork, ForkResult, Pid};
 use signal_hook::{register, SIGCHLD};
 use std::ffi::CString;
-use std::io::{self, BufRead, Write};
+use std::io::Write;
 use std::{env, fs, process, thread, time};
+
+use memprof::memory::peek;
 
 static mut EXITED: bool = false;
 
@@ -18,21 +20,6 @@ fn child_method(args: &[String]) {
     let c_args: Vec<CString> = args.iter().map(|x| convert(x)).collect();
 
     execvp(&convert(&args[0]), &c_args).expect("Error launching {}");
-}
-
-fn extract_number(line: &String, prefix: &str) -> Option<u64> {
-    line.strip_prefix(prefix)?
-        .strip_suffix("kB")?
-        .trim()
-        .parse::<u64>()
-        .ok()
-}
-
-struct Entry {
-    v_size: u64,
-    v_peak: u64,
-    r_size: u64,
-    r_peak: u64,
 }
 
 fn main() {
@@ -66,7 +53,6 @@ fn main() {
         }
     }
 
-    let procfile = format!("/proc/{}/status", child_pid);
     let outfile = format!("/tmp/memprof.tsv");
     now = time::Instant::now();
 
@@ -80,61 +66,21 @@ fn main() {
         .expect("Could not write to file");
 
     while unsafe { !EXITED } {
-        let procfile =
-            fs::File::open(&procfile).expect(&format!("Error opening file {}", &procfile));
-
-        let mut data = Entry {
-            v_size: 0,
-            v_peak: 0,
-            r_size: 0,
-            r_peak: 0,
-        };
-
-        for result in io::BufReader::new(procfile).lines() {
-            if let Ok(line) = result {
-                if line.contains("VmRSS") {
-                    match extract_number(&line, "VmRSS:\t") {
-                        Some(value) => data.r_size = value,
-                        None => {}
-                    }
-                }
-
-                if line.contains("VmHWM") {
-                    match extract_number(&line, "VmHWM:\t") {
-                        Some(value) => data.r_peak = value,
-                        None => {}
-                    }
-                }
-
-                if line.contains("VmSize") {
-                    match extract_number(&line, "VmSize:\t") {
-                        Some(value) => data.v_size = value,
-                        None => {}
-                    }
-                }
-
-                if line.contains("VmPeak") {
-                    match extract_number(&line, "VmPeak:\t") {
-                        Some(value) => data.v_peak = value,
-                        None => {}
-                    }
-                }
-            }
-        }
-
-        outfile
-            .write_all(
-                format!(
-                    "{}\t{}\t{}\t{}\t{}\n",
-                    now.elapsed().as_secs_f32(),
-                    data.r_size,
-                    data.r_peak,
-                    data.v_size,
-                    data.v_peak
+        if let Ok(data) = peek(child_pid) {
+            outfile
+                .write_all(
+                    format!(
+                        "{}\t{}\t{}\t{}\t{}\n",
+                        now.elapsed().as_secs_f32(),
+                        data.r_size(),
+                        data.r_peak(),
+                        data.v_size(),
+                        data.v_peak()
+                    )
+                    .as_bytes(),
                 )
-                .as_bytes(),
-            )
-            .expect("Could not write to file");
+                .expect("Could not write to file");
+        }
 
         thread::sleep(granularity);
     }
