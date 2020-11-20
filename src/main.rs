@@ -1,5 +1,5 @@
 use nix::unistd::{execvp, fork, ForkResult, Pid};
-use signal_hook::{register, SIGCHLD};
+use signal_hook::{register, SIGCHLD, SIGINT};
 use std::ffi::CString;
 use std::io::Write;
 use std::{env, fs, process, thread, time};
@@ -34,7 +34,8 @@ fn main() {
     }
 
     unsafe {
-        register(SIGCHLD, handle_sigchild).expect("Error registering signal");
+        register(SIGCHLD, handle_sigchild).expect("Error registering SIGCHLD");
+        register(SIGINT, handle_sigchild).expect("Error registering SIGINT");
 
         match fork() {
             Ok(ForkResult::Parent { child, .. }) => {
