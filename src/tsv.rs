@@ -1,8 +1,20 @@
+use std::convert::From;
+
 #[derive(Clone, Debug)]
 pub enum Field {
     Float(f32),
     Long(u64),
     Text(String),
+}
+
+impl From<&Field> for String {
+    fn from(field: &Field) -> Self {
+        match field {
+            Field::Float(f) => f.to_string(),
+            Field::Long(l) => l.to_string(),
+            Field::Text(s) => s.clone(),
+        }
+    }
 }
 
 pub fn parse(buffer: Vec<Field>, line: String) -> Option<Vec<Field>> {
@@ -23,4 +35,14 @@ pub fn parse(buffer: Vec<Field>, line: String) -> Option<Vec<Field>> {
     }
 
     Some(out)
+}
+
+pub fn format(data: &Vec<Field>) -> String {
+    let mut rows = data
+        .iter()
+        .map(|f| String::from(f))
+        .collect::<Vec<String>>()
+        .join("\t");
+    rows.push('\n');
+    rows
 }

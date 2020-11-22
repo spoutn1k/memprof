@@ -28,26 +28,28 @@ impl Store {
     }
 
     pub fn create_record(&self, command: &Vec<String>) -> PathBuf {
-        let mut line = format!(
-            "{}\t{}\t",
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            command[1..].join(" ")
-        );
+        let date = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let combination = format!("{} {}", date, command[1..].join(""));
 
         let mut s = DefaultHasher::new();
-        line.hash(&mut s);
+        combination.hash(&mut s);
         let hash = s.finish();
 
-        line.push_str(&format!("{}\n", &hash.to_string()));
+        let fields = vec![
+            tsv::Field::Long(date),
+            tsv::Field::Text(command[1..].join(" ")),
+            tsv::Field::Text(hash.to_string()),
+        ];
 
         fs::OpenOptions::new()
             .append(true)
             .open(self.index_file())
             .unwrap()
-            .write_all(line.as_bytes())
+            .write_all(tsv::format(&fields).as_bytes())
             .expect("Error recording command");
 
         self.cache_dir().join(format!("{}.tsv", hash))

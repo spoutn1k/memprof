@@ -57,5 +57,9 @@ pub fn peek(target_pid: Pid) -> Result<TopicalUsage, Box<dyn Error>> {
         }
     }
 
-    Ok(data)
+    if data.0[1] != 0 && data.0[2] != 0 {
+        Ok(data)
+    } else {
+        Err("".into())
+    }
 }

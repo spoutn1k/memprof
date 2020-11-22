@@ -6,6 +6,7 @@ use std::{env, fs, process, thread, time};
 
 use memprof::memory::peek;
 use memprof::store::{setup_store, Store};
+use memprof::tsv;
 
 static mut EXITED: bool = false;
 
@@ -42,9 +43,13 @@ fn main() {
     }
 
     if args[1] == "--list" {
-        println!("Listing entries");
-        println!("{:#?}", store.list());
-        process::exit(1);
+        if let Some(data) = store.list() {
+            for (index, record) in data.iter().enumerate() {
+                print!("{}. {}", index, tsv::format(&record));
+            }
+        }
+
+        process::exit(0);
     }
 
     unsafe {
