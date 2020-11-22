@@ -5,6 +5,7 @@ use std::io::Write;
 use std::{env, fs, process, thread, time};
 
 use memprof::memory::peek;
+use memprof::store::{setup_store, Store};
 
 static mut EXITED: bool = false;
 
@@ -28,9 +29,16 @@ fn main() {
     let child_pid: Pid;
     let now: time::Instant;
 
+    let mut store = Store::new();
+
     if args.len() < 2 {
         eprintln!("Usage: {} <command> <arguments>", args[0]);
         process::exit(1);
+    }
+
+    if let Err(e) = setup_store(&mut store) {
+        eprintln!("Error accessing cache: {}", e);
+        process::exit(1)
     }
 
     unsafe {
@@ -54,11 +62,10 @@ fn main() {
         }
     }
 
-    let outfile = format!("/tmp/memprof.tsv");
+    let outfile = store.create_record(&args);
     now = time::Instant::now();
 
-    let mut outfile =
-        fs::File::create(&outfile).expect(&format!("Error opening file {}", &outfile));
+    let mut outfile = fs::File::create(&outfile).unwrap();
 
     outfile
         .write_all(
