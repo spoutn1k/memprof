@@ -1,8 +1,10 @@
+use super::tsv;
+
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::fs;
 use std::hash::{Hash, Hasher};
-use std::io::{self, Write};
+use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
 use std::time::SystemTime;
 
@@ -41,7 +43,7 @@ impl Store {
 
         line.push_str(&format!("{}\n", &hash.to_string()));
 
-        std::fs::OpenOptions::new()
+        fs::OpenOptions::new()
             .append(true)
             .open(self.index_file())
             .unwrap()
@@ -49,6 +51,87 @@ impl Store {
             .expect("Error recording command");
 
         self.cache_dir().join(format!("{}.tsv", hash))
+    }
+
+    fn info(&self, id: &str) -> Option<(tsv::Field, tsv::Field, tsv::Field)> {
+        let data: fs::File;
+        let out: Vec<tsv::Field>;
+
+        match fs::File::open(self.cache_dir().join(format!("{}.tsv", id))) {
+            Ok(file) => data = file,
+            Err(e) => {
+                eprintln!("Error accessing record: {}", e);
+                return None;
+            }
+        }
+
+        if let Some(Ok(line)) = io::BufReader::new(data).lines().last() {
+            let buffer = vec![
+                tsv::Field::Float(0.),
+                tsv::Field::Long(0),
+                tsv::Field::Long(0),
+                tsv::Field::Long(0),
+                tsv::Field::Long(0),
+            ];
+
+            match tsv::parse(buffer, line) {
+                Some(data) => out = data,
+                None => {
+                    eprintln!("Error parsing record {}", id);
+                    return None;
+                }
+            }
+        } else {
+            return None;
+        }
+
+        Some((out[0].clone(), out[2].clone(), out[4].clone()))
+    }
+
+    pub fn list(&self) -> Option<Vec<Vec<tsv::Field>>> {
+        let mut all = Vec::<Vec<tsv::Field>>::new();
+        let mut header = true;
+
+        let index = fs::File::open(self.index_file()).unwrap();
+
+        for result in io::BufReader::new(index).lines() {
+            if header {
+                header = false;
+                continue;
+            }
+
+            let mut record = Vec::<tsv::Field>::new();
+
+            let line = result.unwrap_or_else(|e| {
+                eprintln!("{}", e);
+                String::from("")
+            });
+
+            let data = tsv::parse(
+                vec![
+                    tsv::Field::Long(0),
+                    tsv::Field::Text(String::from("")),
+                    tsv::Field::Text(String::from("")),
+                ],
+                line,
+            )
+            .unwrap();
+
+            record.push(data[0].clone());
+            record.push(data[1].clone());
+
+            if let tsv::Field::Text(id) = data[2].clone() {
+                let (length, v_peak, r_peak) = self.info(&id).unwrap();
+
+                record.push(length.clone());
+                record.push(v_peak.clone());
+                record.push(r_peak.clone());
+            }
+
+            all.push(record);
+        }
+
+        Some(all)
     }
 }
 

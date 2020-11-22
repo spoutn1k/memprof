@@ -41,6 +41,12 @@ fn main() {
         process::exit(1)
     }
 
+    if args[1] == "--list" {
+        println!("Listing entries");
+        println!("{:#?}", store.list());
+        process::exit(1);
+    }
+
     unsafe {
         register(SIGCHLD, handle_sigchild).expect("Error registering SIGCHLD");
         register(SIGINT, handle_sigchild).expect("Error registering SIGINT");
