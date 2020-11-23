@@ -41,13 +41,6 @@ fn main() {
         process::exit(1)
     }
 
-    /*
-    plot(&mut profile::Profile::from(
-        "/home/jb/.memprof/runs/7030336304751927636.tsv".into(),
-    ));
-    process::exit(1);
-    */
-
     if args[1] == "--list" {
         if let Some(data) = store.list() {
             for (index, record) in data.iter().enumerate() {
