@@ -1,3 +1,4 @@
+use super::profile;
 use super::tsv;
 
 use std::collections::hash_map::DefaultHasher;
@@ -55,41 +56,6 @@ impl Store {
         self.cache_dir().join(format!("{}.tsv", hash))
     }
 
-    fn info(&self, id: &str) -> Option<(tsv::Field, tsv::Field, tsv::Field)> {
-        let data: fs::File;
-        let out: Vec<tsv::Field>;
-
-        match fs::File::open(self.cache_dir().join(format!("{}.tsv", id))) {
-            Ok(file) => data = file,
-            Err(e) => {
-                eprintln!("Error accessing record: {}", e);
-                return None;
-            }
-        }
-
-        if let Some(Ok(line)) = io::BufReader::new(data).lines().last() {
-            let buffer = vec![
-                tsv::Field::Float(0.),
-                tsv::Field::Long(0),
-                tsv::Field::Long(0),
-                tsv::Field::Long(0),
-                tsv::Field::Long(0),
-            ];
-
-            match tsv::parse(buffer, line) {
-                Some(data) => out = data,
-                None => {
-                    eprintln!("Error parsing record {}", id);
-                    return None;
-                }
-            }
-        } else {
-            return None;
-        }
-
-        Some((out[0].clone(), out[2].clone(), out[4].clone()))
-    }
-
     pub fn list(&self) -> Option<Vec<Vec<tsv::Field>>> {
         let mut all = Vec::<Vec<tsv::Field>>::new();
         let mut header = true;
@@ -102,15 +68,13 @@ impl Store {
                 continue;
             }
 
-            let mut record = Vec::<tsv::Field>::new();
-
             let line = result.unwrap_or_else(|e| {
                 eprintln!("{}", e);
                 String::from("")
             });
 
             let data = tsv::parse(
-                vec![
+                &vec![
                     tsv::Field::Long(0),
                     tsv::Field::Text(String::from("")),
                     tsv::Field::Text(String::from("")),
@@ -119,18 +83,19 @@ impl Store {
             )
             .unwrap();
 
-            record.push(data[0].clone());
-            record.push(data[1].clone());
+            let prof: profile::Profile;
 
             if let tsv::Field::Text(id) = data[2].clone() {
-                let (length, v_peak, r_peak) = self.info(&id).unwrap();
+                prof = profile::Profile::from(self.cache_dir().join(format!("{}.tsv", id)).into());
 
-                record.push(length.clone());
-                record.push(v_peak.clone());
-                record.push(r_peak.clone());
+                all.push(vec![
+                    data[0].clone(),
+                    data[1].clone(),
+                    tsv::Field::Float(prof.elapsed),
+                    tsv::Field::Long(prof.real_peak),
+                    tsv::Field::Long(prof.virtual_peak),
+                ]);
             }
-
-            all.push(record);
         }
 
         Some(all)

@@ -17,7 +17,27 @@ impl From<&Field> for String {
     }
 }
 
-pub fn parse(buffer: Vec<Field>, line: String) -> Option<Vec<Field>> {
+impl Into<f32> for Field {
+    fn into(self) -> f32 {
+        match self {
+            Field::Float(f) => f as f32,
+            Field::Long(l) => l as f32,
+            Field::Text(_s) => 0 as f32,
+        }
+    }
+}
+
+impl Into<u64> for Field {
+    fn into(self) -> u64 {
+        match self {
+            Field::Float(f) => f as u64,
+            Field::Long(l) => l as u64,
+            Field::Text(_s) => 0 as u64,
+        }
+    }
+}
+
+pub fn parse(buffer: &Vec<Field>, line: String) -> Option<Vec<Field>> {
     let parts: Vec<&str> = line.split('\t').collect();
     let mut out = Vec::<Field>::new();
 
