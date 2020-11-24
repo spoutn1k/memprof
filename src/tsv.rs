@@ -37,7 +37,7 @@ impl Into<u64> for Field {
     }
 }
 
-pub fn parse(buffer: &Vec<Field>, line: String) -> Option<Vec<Field>> {
+pub fn parse(buffer: &Vec<Field>, line: &String) -> Option<Vec<Field>> {
     let parts: Vec<&str> = line.split('\t').collect();
     let mut out = Vec::<Field>::new();
 

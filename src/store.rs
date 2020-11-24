@@ -1,4 +1,4 @@
-use super::profile;
+use super::profile::Profile;
 use super::tsv;
 
 use std::collections::hash_map::DefaultHasher;
@@ -28,7 +28,7 @@ impl Store {
         self.location.join("runs")
     }
 
-    pub fn create_record(&self, command: &Vec<String>) -> PathBuf {
+    pub fn create_record(&self, command: &Vec<String>) -> Profile {
         let date = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -53,7 +53,37 @@ impl Store {
             .write_all(tsv::format(&fields).as_bytes())
             .expect("Error recording command");
 
-        self.cache_dir().join(format!("{}.tsv", hash))
+        Profile::new(self.cache_dir().join(format!("{}.tsv", hash)))
+    }
+
+    pub fn get_profile(&self, index: u32) -> Option<Profile> {
+        let index_file = fs::File::open(self.index_file()).unwrap();
+        let hash: String;
+
+        let records: Vec<Result<String, _>> = io::BufReader::new(index_file).lines().collect();
+
+        assert!(records.len() > index as usize);
+
+        let line: String = records[(index + 1) as usize]
+            .as_ref()
+            .unwrap_or(&String::from(""))
+            .clone();
+
+        let data = tsv::parse(
+            &vec![
+                tsv::Field::Long(0),
+                tsv::Field::Text(String::from("")),
+                tsv::Field::Text(String::from("")),
+            ],
+            &line,
+        )
+        .unwrap();
+
+        hash = (&data[2]).into();
+
+        Some(Profile::from(
+            self.cache_dir().join(format!("{}.tsv", hash)),
+        ))
     }
 
     pub fn list(&self) -> Option<Vec<Vec<tsv::Field>>> {
@@ -79,14 +109,14 @@ impl Store {
                     tsv::Field::Text(String::from("")),
                     tsv::Field::Text(String::from("")),
                 ],
-                line,
+                &line,
             )
             .unwrap();
 
-            let prof: profile::Profile;
+            let prof: Profile;
 
             if let tsv::Field::Text(id) = data[2].clone() {
-                prof = profile::Profile::from(self.cache_dir().join(format!("{}.tsv", id)).into());
+                prof = Profile::from(self.cache_dir().join(format!("{}.tsv", id)).into());
 
                 all.push(vec![
                     data[2].clone(),

@@ -50,7 +50,7 @@ impl Profile {
     }
 
     pub fn from(p: PathBuf) -> Profile {
-        let output = File::open(p).unwrap();
+        let output = File::open(&p).expect(&format!("Error opening file: {:?}", p));
 
         let mut prof = Profile {
             file: output,
@@ -89,7 +89,7 @@ impl Profile {
         let last_record: Vec<tsv::Field>;
 
         if let Some(Ok(line)) = BufReader::new(&self.file).lines().last() {
-            match tsv::parse(&self.format, line) {
+            match tsv::parse(&self.format, &line) {
                 Some(data) => {
                     last_record = data;
                     self.elapsed = last_record[0].clone().into();
@@ -119,7 +119,7 @@ impl Profile {
                 continue;
             }
 
-            match tsv::parse(&self.format, result.unwrap()) {
+            match tsv::parse(&self.format, &result.unwrap()) {
                 Some(data) => record = data,
                 None => {
                     eprintln!("Error parsing record");

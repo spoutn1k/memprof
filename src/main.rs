@@ -4,7 +4,7 @@ use std::ffi::CString;
 use std::{env, process, thread, time};
 
 use memprof::memory::peek;
-use memprof::profile;
+use memprof::plot::plot;
 use memprof::store::Store;
 use memprof::tsv;
 
@@ -54,6 +54,14 @@ fn main() {
         process::exit(0);
     }
 
+    if args[1] == "--show" {
+        if let Some(mut profile) = store.get_profile(args[2].parse::<u32>().unwrap()) {
+            plot(&mut profile);
+        }
+
+        process::exit(0);
+    }
+
     unsafe {
         register(SIGCHLD, handle_sigchild).expect("Error registering SIGCHLD");
         register(SIGINT, handle_sigchild).expect("Error registering SIGINT");
@@ -75,8 +83,7 @@ fn main() {
         }
     }
 
-    let outfile = store.create_record(&args);
-    let mut profile = profile::Profile::new(outfile);
+    let mut profile = store.create_record(&args);
 
     while unsafe { !EXITED } {
         if let Ok(data) = peek(child_pid) {
