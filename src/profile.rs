@@ -93,7 +93,7 @@ impl Profile {
                 Some(data) => {
                     last_record = data;
                     self.elapsed = last_record[0].clone().into();
-                    self.real_peak = last_record[1].clone().into();
+                    self.real_peak = last_record[4].clone().into();
                     self.virtual_peak = last_record[2].clone().into();
                 }
                 None => {
