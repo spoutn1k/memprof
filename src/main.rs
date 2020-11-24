@@ -5,7 +5,7 @@ use std::{env, process, thread, time};
 
 use memprof::memory::peek;
 use memprof::profile;
-use memprof::store::{setup_store, Store};
+use memprof::store::Store;
 use memprof::tsv;
 
 static mut EXITED: bool = false;
@@ -29,16 +29,19 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let child_pid: Pid;
 
-    let mut store = Store::new();
-
     if args.len() < 2 {
         eprintln!("Usage: {} <command> <arguments>", args[0]);
         process::exit(1);
     }
 
-    if let Err(e) = setup_store(&mut store) {
-        eprintln!("Error accessing cache: {}", e);
-        process::exit(1)
+    let store: Store;
+
+    match Store::setup(".memprof".into()) {
+        Ok(s) => store = s,
+        Err(e) => {
+            eprintln!("Error accessing cache: {}", e);
+            process::exit(1)
+        }
     }
 
     if args[1] == "--list" {

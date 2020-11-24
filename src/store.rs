@@ -89,6 +89,7 @@ impl Store {
                 prof = profile::Profile::from(self.cache_dir().join(format!("{}.tsv", id)).into());
 
                 all.push(vec![
+                    data[2].clone(),
                     data[0].clone(),
                     data[1].clone(),
                     tsv::Field::Float(prof.elapsed),
@@ -100,37 +101,38 @@ impl Store {
 
         Some(all)
     }
-}
 
-pub fn setup_store(store: &mut Store) -> Result<(), Box<dyn Error>> {
-    let home: std::path::PathBuf;
+    pub fn setup(dir: std::path::PathBuf) -> Result<Store, Box<dyn Error>> {
+        let home: std::path::PathBuf;
 
-    match dirs::home_dir() {
-        Some(path) => home = path,
-        None => return Err("Home folder not found".into()),
-    }
+        match dirs::home_dir() {
+            Some(path) => home = path,
+            None => return Err("Home folder not found".into()),
+        }
 
-    store.location = home.join(".memprof");
+        let mut store = Store::new();
+        store.location = home.join(dir);
 
-    let index = store.index_file();
+        let index = store.index_file();
 
-    fs::create_dir_all(store.cache_dir())?;
+        fs::create_dir_all(store.cache_dir())?;
 
-    match fs::metadata(&index) {
-        Ok(file) => {
-            if !file.is_file() {
-                return Err("Index file is not accessible".into());
+        match fs::metadata(&index) {
+            Ok(file) => {
+                if !file.is_file() {
+                    return Err("Index file is not accessible".into());
+                }
+            }
+            Err(e) => {
+                if e.kind() == io::ErrorKind::NotFound {
+                    let mut index = fs::File::create(&index)?;
+                    index.write_all("Date\tCommand\tFile\n".as_bytes())?;
+                } else {
+                    return Err(e.into());
+                }
             }
         }
-        Err(e) => {
-            if e.kind() == io::ErrorKind::NotFound {
-                let mut index = fs::File::create(&index)?;
-                index.write_all("Date\tCommand\tFile\n".as_bytes())?;
-            } else {
-                return Err(e.into());
-            }
-        }
-    }
 
-    Ok(())
+        Ok(store)
+    }
 }
