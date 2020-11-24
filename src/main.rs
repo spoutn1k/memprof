@@ -55,7 +55,14 @@ fn main() {
     }
 
     if args[1] == "--show" {
-        if let Some(mut profile) = store.get_profile(args[2].parse::<u32>().unwrap()) {
+        let selected: usize;
+        if args.len() > 2 {
+            selected = args[2].parse::<usize>().unwrap();
+        } else {
+            selected = store.list().unwrap().len() - 1;
+        }
+
+        if let Some(mut profile) = store.get_profile(selected as u32) {
             plot(&mut profile);
         }
 
