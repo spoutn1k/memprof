@@ -3,27 +3,32 @@ use std::error::Error;
 use std::fs;
 use std::io::{self, BufRead};
 
-pub struct TopicalUsage(Vec<u64>);
+pub struct TopicalUsage(usize, usize, usize, usize);
 
 impl TopicalUsage {
-    fn new() -> TopicalUsage {
-        TopicalUsage(vec![0, 0, 0, 0])
+    fn new(data: &Vec<usize>) -> TopicalUsage {
+        assert!(data.len() > 3);
+        TopicalUsage(data[0], data[1], data[2], data[3])
     }
 
-    pub fn r_size(&self) -> u64 {
-        self.0[0]
+    pub fn r_size(&self) -> usize {
+        self.0
     }
 
-    pub fn r_peak(&self) -> u64 {
-        self.0[1]
+    pub fn r_peak(&self) -> usize {
+        self.1
     }
 
-    pub fn v_size(&self) -> u64 {
-        self.0[2]
+    pub fn v_size(&self) -> usize {
+        self.2
     }
 
-    pub fn v_peak(&self) -> u64 {
-        self.0[3]
+    pub fn v_peak(&self) -> usize {
+        self.3
+    }
+
+    fn empty(&self) -> bool {
+        self.0 | self.1 | self.2 | self.3 != 0
     }
 }
 
@@ -31,35 +36,42 @@ fn procfile(pid: Pid) -> String {
     return format!("/proc/{}/status", pid);
 }
 
-fn extract_number(line: &String, prefix: &str) -> Option<u64> {
+fn extract_number(line: &String, prefix: &str) -> Option<usize> {
     line.strip_prefix(prefix)?
         .strip_suffix("kB")?
         .trim()
-        .parse::<u64>()
+        .parse::<usize>()
         .ok()
 }
 
 pub fn peek(target_pid: Pid) -> Result<TopicalUsage, Box<dyn Error>> {
     let procfile = fs::File::open(procfile(target_pid))?;
 
-    let mut data = TopicalUsage::new();
     let fields = vec!["VmSize", "VmPeak", "VmRSS", "VmHWM"];
+    let mut data = vec![0, 0, 0, 0];
 
     for result in io::BufReader::new(procfile).lines() {
-        if let Ok(line) = result {
-            for (index, field) in fields.iter().enumerate() {
-                if line.contains(field) {
-                    if let Some(value) = extract_number(&line, &format!("{}:\t", field)) {
-                        data.0[index] = value;
-                    }
+        let line = result?;
+
+        for (index, field) in fields.iter().enumerate() {
+            if line.contains(field) {
+                if let Some(value) = extract_number(&line, &format!("{}:\t", field)) {
+                    data[index] = value;
                 }
             }
         }
     }
 
-    if data.0[1] != 0 && data.0[2] != 0 {
-        Ok(data)
-    } else {
-        Err("".into())
+    let usage = TopicalUsage::new(&data);
+
+    // Get rid of empty lines
+    if usage.empty() {
+        return Err(format!(
+            "No values could be retrieved from {}",
+            super::memory::procfile(target_pid)
+        )
+        .into());
     }
+
+    Ok(usage)
 }
