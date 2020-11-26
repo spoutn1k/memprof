@@ -9,7 +9,7 @@ pub struct TopicalUsage(u64, u64, u64, u64);
 impl TopicalUsage {
     fn from(data: &Vec<u64>) -> TopicalUsage {
         assert!(data.len() > 3, "Not enough data");
-        TopicalUsage(data[0], data[1], data[2], data[3])
+        TopicalUsage(data[2], data[3], data[0], data[1])
     }
 
     pub fn r_size(&self) -> u64 {

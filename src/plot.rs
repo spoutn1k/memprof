@@ -1,44 +1,32 @@
 use super::profile::Profile;
-use plotters::prelude::*;
-use std::cmp::max;
+use gnuplot::{AutoOption, AxesCommon, Caption, Figure};
 
 pub fn plot(prof: &mut Profile) {
-    let root_area = SVGBackend::new("plot.svg", (1000, 450)).into_drawing_area();
-    root_area.fill(&WHITE).unwrap();
-
-    let max_x = prof.elapsed;
-    let max_y = max(prof.virtual_peak, prof.real_peak) as f32 * 0.00110;
-
-    let mut ctx = ChartBuilder::on(&root_area)
-        .set_label_area_size(LabelAreaPosition::Left, 80)
-        .set_label_area_size(LabelAreaPosition::Right, 80)
-        .set_label_area_size(LabelAreaPosition::Bottom, 40)
-        .caption("Memory profile", ("Ubuntu", 40).into_font())
-        .build_cartesian_2d(0f32..max_x, 0f32..max_y)
-        .unwrap();
-
-    ctx.configure_mesh().draw().unwrap();
-
     let data = prof.records().unwrap();
 
-    ctx.draw_series(LineSeries::new(
-        data.iter().map(|x| (x.0, x.1 as f32 * 0.001)),
-        &RED,
-    ))
-    .unwrap();
-    ctx.draw_series(LineSeries::new(
-        data.iter().map(|x| (x.0, x.2 as f32 * 0.001)),
-        &GREEN,
-    ))
-    .unwrap();
-    ctx.draw_series(LineSeries::new(
-        data.iter().map(|x| (x.0, x.3 as f32 * 0.001)),
-        &BLUE,
-    ))
-    .unwrap();
-    ctx.draw_series(LineSeries::new(
-        data.iter().map(|x| (x.0, x.4 as f32 * 0.001)),
-        &YELLOW,
-    ))
-    .unwrap();
+    let x: Vec<f32> = data.iter().map(|r| r.0).collect();
+    let r_size: Vec<f32> = data.iter().map(|r| r.1 as f32 / 1024f32).collect();
+    let r_peak: Vec<f32> = data.iter().map(|r| r.2 as f32 / 1024f32).collect();
+    let v_size: Vec<f32> = data.iter().map(|r| r.3 as f32 / 1024f32).collect();
+    let v_peak: Vec<f32> = data.iter().map(|r| r.4 as f32 / 1024f32).collect();
+
+    let mut fg = Figure::new();
+
+    fg.axes2d()
+        .set_x_grid(true)
+        .set_x_minor_grid(true)
+        .set_x_ticks(Some((AutoOption::Auto, 1)), &[], &[])
+        .set_x_label("Time (s)", &[])
+        .set_y_grid(true)
+        .set_y_ticks(Some((AutoOption::Auto, 1)), &[], &[])
+        .set_y_minor_grid(true)
+        .set_y_label("Footprint (MB)", &[])
+        .lines(&x, &r_size, &[Caption("Real Memory")])
+        .lines(&x, &r_peak, &[Caption("Peak Real Memory")])
+        .lines(&x, &v_size, &[Caption("Virtual memory size")])
+        .lines(&x, &v_peak, &[Caption("Peak virtual memory size")]);
+
+    if let Err(e) = fg.show() {
+        eprintln!("{}", e);
+    }
 }
