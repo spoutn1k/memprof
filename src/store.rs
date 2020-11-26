@@ -5,27 +5,26 @@ use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::fs;
 use std::hash::{Hash, Hasher};
-use std::io::{self, BufRead, Write};
+use std::io::{self, stdout, BufRead, Write};
 use std::path::PathBuf;
 use std::time::SystemTime;
 
-pub struct Store {
-    location: PathBuf,
-}
+use chrono::{DateTime, Local, TimeZone};
+use std::convert::TryFrom;
+
+pub struct Store(PathBuf);
 
 impl Store {
     pub fn new() -> Store {
-        Store {
-            location: PathBuf::from(""),
-        }
+        Store(PathBuf::from(""))
     }
 
     fn index_file(&self) -> PathBuf {
-        self.location.join("index.tsv")
+        self.0.join("index.tsv")
     }
 
     fn cache_dir(&self) -> PathBuf {
-        self.location.join("runs")
+        self.0.join("runs")
     }
 
     pub fn create_record(&self, command: &Vec<String>) -> Profile {
@@ -141,7 +140,7 @@ impl Store {
         }
 
         let mut store = Store::new();
-        store.location = home.join(dir);
+        store.0 = home.join(dir);
 
         let index = store.index_file();
 
@@ -165,4 +164,26 @@ impl Store {
 
         Ok(store)
     }
+}
+
+pub fn format_run(index: usize, data: &Vec<tsv::Field>) {
+    assert!(data.len() > 4);
+
+    let _date: DateTime<Local> = Local.timestamp(
+        i64::try_from(Into::<u64>::into(data[1].clone())).unwrap(),
+        0,
+    );
+
+    stdout()
+        .write_all(
+            format!(
+                "{}\t{}\t{:>8.3}s\t{:>10.3}MB\n",
+                index,
+                String::from(&data[2]),
+                Into::<f32>::into(data[3].clone()),
+                Into::<f32>::into(data[4].clone()) / 1024.0,
+            )
+            .as_bytes(),
+        )
+        .unwrap();
 }

@@ -11,4 +11,5 @@ nix = "*"
 signal-hook = "*"
 dirs = "*"
 plotters = "^0.3.0"
-num-traits = "*"
+chrono = "^0.4"
+

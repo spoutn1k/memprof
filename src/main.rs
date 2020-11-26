@@ -5,8 +5,7 @@ use std::{env, process, thread, time};
 
 use memprof::memory::peek;
 use memprof::plot::plot;
-use memprof::store::Store;
-use memprof::tsv;
+use memprof::store::{format_run, Store};
 
 static mut EXITED: bool = false;
 
@@ -34,21 +33,14 @@ fn main() {
         process::exit(1);
     }
 
-    let store: Store;
-
-    match Store::setup(".memprof".into()) {
-        Ok(s) => store = s,
-        Err(e) => {
-            eprintln!("Error accessing cache: {}", e);
-            process::exit(1)
-        }
-    }
+    let store = Store::setup(".memprof".into()).expect("Error accessing cache");
 
     if args[1] == "--list" {
         if let Some(data) = store.list() {
-            for (index, record) in data.iter().enumerate() {
-                print!("{}. {}", index, tsv::format(&record));
-            }
+            data.iter()
+                .enumerate()
+                .map(|(i, r)| format_run(i, r))
+                .for_each(drop);
         }
 
         process::exit(0);

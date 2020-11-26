@@ -37,8 +37,8 @@ impl Into<u64> for Field {
     }
 }
 
-pub fn parse(buffer: &Vec<Field>, line: &String) -> Option<Vec<Field>> {
-    let parts: Vec<&str> = line.split('\t').collect();
+pub fn parse(buffer: &Vec<Field>, line: &str) -> Option<Vec<Field>> {
+    let parts: Vec<&str> = line.trim().split('\t').collect();
     let mut out = Vec::<Field>::new();
 
     if buffer.len() != parts.len() {
@@ -65,4 +65,25 @@ pub fn format(data: &Vec<Field>) -> String {
         .join("\t");
     rows.push('\n');
     rows
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Field;
+
+    #[test]
+    fn identity_fun() {
+        let line = "34\t4.2525\tThis line is a test\n";
+
+        let format = vec![
+            Field::Long(0),
+            Field::Float(0.),
+            Field::Text(String::from("")),
+        ];
+
+        match super::parse(&format, line) {
+            Some(data) => assert_eq!(line, super::format(&data)),
+            None => panic!("Failed to parse line"),
+        }
+    }
 }
