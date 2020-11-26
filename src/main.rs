@@ -100,9 +100,5 @@ fn main() {
         thread::sleep(granularity);
     }
 
-    eprintln!(
-        "Child {} ran for {}ms",
-        child_pid,
-        profile.start.elapsed().as_millis()
-    );
+    eprintln!("Child {} ran for {}ms", child_pid, profile.elapsed);
 }

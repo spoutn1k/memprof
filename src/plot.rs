@@ -3,7 +3,7 @@ use plotters::prelude::*;
 use std::cmp::max;
 
 pub fn plot(prof: &mut Profile) {
-    let root_area = BitMapBackend::new("plot.png", (1200, 800)).into_drawing_area();
+    let root_area = SVGBackend::new("plot.svg", (1000, 450)).into_drawing_area();
     root_area.fill(&WHITE).unwrap();
 
     let max_x = prof.elapsed;
@@ -13,7 +13,7 @@ pub fn plot(prof: &mut Profile) {
         .set_label_area_size(LabelAreaPosition::Left, 80)
         .set_label_area_size(LabelAreaPosition::Right, 80)
         .set_label_area_size(LabelAreaPosition::Bottom, 40)
-        .caption("Memory profile", ("sans-serif", 40))
+        .caption("Memory profile", ("Ubuntu", 40).into_font())
         .build_cartesian_2d(0f32..max_x, 0f32..max_y)
         .unwrap();
 

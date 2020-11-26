@@ -9,7 +9,7 @@ use std::time::Instant;
 
 pub struct Profile {
     file: File,
-    pub start: Instant,
+    start: Instant,
     pub elapsed: f32,
     pub real_peak: u64,
     pub virtual_peak: u64,
@@ -67,13 +67,30 @@ impl Profile {
             ],
         };
 
-        prof.relevant();
+        let last_record: Vec<tsv::Field>;
+
+        if let Some(Ok(line)) = BufReader::new(&prof.file).lines().last() {
+            match tsv::parse(&prof.format, &line) {
+                Some(data) => {
+                    last_record = data;
+                    prof.elapsed = last_record[0].clone().into();
+                    prof.real_peak = last_record[4].clone().into();
+                    prof.virtual_peak = last_record[2].clone().into();
+                }
+                None => {
+                    eprintln!("Error parsing record");
+                }
+            }
+        }
+
         prof
     }
 
     pub fn record(&mut self, data: TopicalUsage) {
+        self.elapsed = self.start.elapsed().as_secs_f32();
+
         let record: Vec<tsv::Field> = vec![
-            tsv::Field::Float(self.start.elapsed().as_secs_f32()),
+            tsv::Field::Float(self.elapsed),
             tsv::Field::Long(data.r_size()),
             tsv::Field::Long(data.r_peak()),
             tsv::Field::Long(data.v_size()),
@@ -83,25 +100,6 @@ impl Profile {
         self.file
             .write_all(tsv::format(&record).as_bytes())
             .expect("Error writing to profile");
-    }
-
-    fn relevant(&mut self) {
-        let last_record: Vec<tsv::Field>;
-
-        if let Some(Ok(line)) = BufReader::new(&self.file).lines().last() {
-            match tsv::parse(&self.format, &line) {
-                Some(data) => {
-                    last_record = data;
-                    self.elapsed = last_record[0].clone().into();
-                    self.real_peak = last_record[4].clone().into();
-                    self.virtual_peak = last_record[2].clone().into();
-                }
-                None => {
-                    eprintln!("Error parsing record");
-                    return;
-                }
-            }
-        }
     }
 
     pub fn records(&mut self) -> Option<Vec<(f32, u64, u64, u64, u64)>> {
